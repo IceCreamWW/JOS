@@ -14,6 +14,7 @@
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
 
+
 struct Command {
 	const char *name;
 	const char *desc;
@@ -21,9 +22,17 @@ struct Command {
 	int (*func)(int argc, char** argv, struct Trapframe* tf);
 };
 
+int mon_printf(int argc, char **argv, struct Trapframe* tf){
+	int x = 1, y = 3, z = 4;
+	cprintf("x %d, y %x",3);
+	return 0;
+}
+
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "print", "Test cprintf function", mon_printf},
+	{ "backtrace", "Get backtrace display for exercise 11", mon_backtrace}
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -54,10 +63,58 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+
+
+static inline uint32_t
+read_argc(void)
+{
+	uint32_t argc;
+	asm volatile("movl 8(%%ebp),%0" : "=r" (argc));
+	return argc;
+}
+
+
+static inline uint32_t
+read_args(int which){
+	uint32_t argsp;
+	uint32_t arg;
+	
+	asm volatile("movl 12(%%ebp),%0" : "=r" (argsp));		
+	asm volatile("movl %1,%0" : "=r" (arg) : "r" (argsp + which * 4));
+	return arg;
+}
+
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	uint32_t ebp = read_ebp();
+
+	
+
+	while (*(uint32_t*)ebp) {
+		struct Eipdebuginfo info;
+		uint32_t eip = *((uint32_t*)ebp + 1);
+		uint32_t argv[5];
+		int i;
+		for (i=1; i<=5; ++i) {
+			argv[i - 1] = *((uint32_t*)ebp + 1 + i);
+		}
+		debuginfo_eip(eip, &info);
+
+		/* Format funciton name */
+		char *index = strchr(info.eip_fn_name, ':');
+		uint32_t size = index - info.eip_fn_name + 1;
+		char eip_fn_name[size];
+		memcpy(eip_fn_name, info.eip_fn_name, size);
+		eip_fn_name[size - 1] = 0;
+
+		cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x  %s:%d: %s+%d\n",read_ebp(), eip, argv[0], argv[1], argv[2], argv[3], argv[4], info.eip_file, info.eip_line, eip_fn_name, eip - info.eip_fn_addr);
+       		ebp = *((uint32_t*)ebp);
+		
+	}
+	
+//	cprintf("ebp %x  eip %x  args %x %s %s %s %s\n",read_ebp(), read_eip(), argc, argv[0], argv[1], argv[2], argv[3]);
 	return 0;
 }
 
@@ -106,6 +163,7 @@ runcmd(char *buf, struct Trapframe *tf)
 	cprintf("Unknown command '%s'\n", argv[0]);
 	return 0;
 }
+
 
 void
 monitor(struct Trapframe *tf)
