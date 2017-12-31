@@ -102,8 +102,18 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	if (n == 0){
+		return nextfree;
+	}
+	else{
+		result = nextfree;
+		nextfree = ROUNDUP((char *) (n + nextfree), PGSIZE);
+		if (nextfree > npages * PGSIZE){
+			panic("No enough memory")
+			return NULL;
+		}
+		return result;	
+	}
 }
 
 // Set up a two-level page table:
@@ -149,6 +159,8 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
+	pages = (PageInfo *)boot_alloc(npages * sizeof(PageInfo));
+	memset(pages, 0, npages * sizeof(PageInfo))
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -172,6 +184,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -253,9 +266,12 @@ page_init(void)
 	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
+		uint32_t kernel_end = ((uint32_t)boot_alloc(0) - KERNBASE) / PGSIZE;
+		if ((i > 0 && i < npages_basemem) || i >= kernel_end) {
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
+		}
 	}
 }
 
@@ -274,8 +290,18 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	// Fill this function in
-	return 0;
+	struct PageInfo * pi = page_free_list;
+	if (pi != NULL) {
+		page_free_list = page_free_list->pp_link;
+		// Writer Comment: 
+		// page_free will set pp_link to the next free PageInfo*, 
+		// in this way double-free bugs are checked
+		pi -> pp_link = NULL; 		
+		if (alloc_flags & ALLOC_ZERO) {
+			memset(page2kva(pi), 0, PGSIZE);
+		}
+	}
+	return pi;
 }
 
 //
@@ -288,6 +314,13 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	if (pp->pp_link || pp->pp_ref) {
+		panic("cannot do free, double-free or ref nonzero");
+	}else{
+		pp->pp_link = page_free_list;
+		page_free_list = pp;
+	}
+	return;
 }
 
 //
