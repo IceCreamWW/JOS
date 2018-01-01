@@ -108,8 +108,8 @@ boot_alloc(uint32_t n)
 	else{
 		result = nextfree;
 		nextfree = ROUNDUP((char *) (n + nextfree), PGSIZE);
-		if (nextfree > npages * PGSIZE){
-			panic("No enough memory")
+		if ((uint32_t)nextfree > npages * PGSIZE){
+			panic("No enough memory");
 			return NULL;
 		}
 		return result;	
@@ -159,8 +159,8 @@ mem_init(void)
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
 
-	pages = (PageInfo *)boot_alloc(npages * sizeof(PageInfo));
-	memset(pages, 0, npages * sizeof(PageInfo))
+	pages = (struct PageInfo *)boot_alloc(npages * sizeof(struct PageInfo));
+	memset(pages, 0, npages * sizeof(struct PageInfo));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
