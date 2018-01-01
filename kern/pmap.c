@@ -85,6 +85,7 @@ static void *
 boot_alloc(uint32_t n)
 {
 	static char *nextfree;	// virtual address of next byte of free memory
+	static uint32_t maxpa = 0;
 	char *result;
 
 	// Initialize nextfree if this is the first time.
@@ -95,6 +96,7 @@ boot_alloc(uint32_t n)
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
+		maxpa = (uint32_t)nextfree + npages * PGSIZE; 
 	}
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
@@ -108,7 +110,7 @@ boot_alloc(uint32_t n)
 	else{
 		result = nextfree;
 		nextfree = ROUNDUP((char *) (n + nextfree), PGSIZE);
-		if ((uint32_t)nextfree > npages * PGSIZE){
+		if ((uint32_t)nextfree > maxpa){
 			panic("No enough memory");
 			return NULL;
 		}
@@ -135,7 +137,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -362,23 +364,26 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	uint32_t dir_index = PDX(va);  // index in page directory
 	uint32_t tab_index = PTX(va);  // index in page table
 	pde_t pde = pgdir[dir_index];  // page directory entry
-
+	pte_t* pte_pt;
 	if (pde & PTE_P) {
 		// if page dir entry exists, search in page table
-		pte_t *pt = (pte_t *)PTE_ADDR(pde);  // page table address
-		return &(pt[tab_index]);
-	} else if (create) {
-		// create page table as well as page entry in that table
-		PageInfo *pt_page_info = page_alloc(ALLOC_ZERO);
-		if (!pt_page_info) {
-			return NULL;
+		pte_pt = (pte_t *)(KADDR(PTE_ADDR(pde)));  // page table address
+		return (pte_pt + tab_index);
+	} else {
+		if (create) {
+			// create page table as well as page entry in that table
+			struct PageInfo *pt_page_info = page_alloc(ALLOC_ZERO);
+			if (!pt_page_info) {
+				return NULL;
+			} else {
+				++pt_page_info->pp_link;
+				pte_pt = (pte_t *)KADDR(page2pa(pt_page_info));
+				pgdir[dir_index] = (pde_t)PADDR(pte_pt) | PTE_P | PTE_U | PTE_W;
+				return  (pte_pt + tab_index);
+			}
 		} else {
-			pte_t *pt = (pte_t *)page2kva(pt_page_info); 
-			pgdir[dir_index] = page2kva(pt_page_info) | PTE_P | PTE_U | PTE_W;
-			return  pt;
+			return NULL;
 		}
-	}else{
-		return NULL;
 	}
 }
 
@@ -396,7 +401,12 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-	// Fill this function in
+	uint32_t va_end = va + size;
+	for (; va < va_end; va += PGSIZE, pa += PGSIZE) {
+		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
+		*pte = (pte_t)(pa | (perm | PTE_P));
+	}
+	return;
 }
 
 //
@@ -428,7 +438,17 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-	return 0;
+	pte_t* pte_pt = pgdir_walk(pgdir, va, true);
+	if (!pte_pt) {
+		return E_NO_MEM;
+	} else {
+		if (*pte_pt & PTE_P) {
+			page_remove(pgdir, va);
+		} 
+		*pte_pt = page2pa(pp) | (perm | PTE_P);
+		++pp->pp_ref;
+		return 0;
+	}
 }
 
 //
@@ -445,10 +465,16 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+	pte_t* pte_pt = pgdir_walk(pgdir, va, false);
+	if (pte_store) {
+		*pte_store = pte_pt;
+	}
+	if (pte_pt) {
+		return pa2page(PTE_ADDR(*pte_pt));
+	}else {
+		return NULL;
+	}
 }
-
 //
 // Unmaps the physical page at virtual address 'va'.
 // If there is no physical page at that address, silently does nothing.
@@ -467,6 +493,14 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
+	pte_t **pte_store = NULL;
+	struct PageInfo* pp = page_lookup(pgdir, va, pte_store);
+	if (pp) {
+		page_decref(pp);
+		**pte_store = 0;
+		tlb_invalidate(pgdir, va);	
+	}
+	
 	// Fill this function in
 }
 
