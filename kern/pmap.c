@@ -8,6 +8,7 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/monitor.h>
 
 // These variables are set by i386_detect_memory()
 size_t npages;			// Amount of physical memory (in pages)
@@ -176,6 +177,7 @@ mem_init(void)
 	check_page_alloc();
 	check_page();
 
+	panic("mem_init: This function is not finished\n");
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
 
@@ -376,7 +378,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 			if (!pt_page_info) {
 				return NULL;
 			} else {
-				++pt_page_info->pp_link;
+				++pt_page_info->pp_ref;
 				pte_pt = (pte_t *)KADDR(page2pa(pt_page_info));
 				pgdir[dir_index] = (pde_t)PADDR(pte_pt) | PTE_P | PTE_U | PTE_W;
 				return  (pte_pt + tab_index);
@@ -440,13 +442,17 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	// Fill this function in
 	pte_t* pte_pt = pgdir_walk(pgdir, va, true);
 	if (!pte_pt) {
-		return E_NO_MEM;
+		return -E_NO_MEM;
 	} else {
 		if (*pte_pt & PTE_P) {
 			page_remove(pgdir, va);
 		} 
 		*pte_pt = page2pa(pp) | (perm | PTE_P);
+		if (page_free_list == pp) {
+			page_free_list = pp->pp_link;
+		}
 		++pp->pp_ref;
+		pp->pp_link = NULL;
 		return 0;
 	}
 }
@@ -493,12 +499,15 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	pte_t **pte_store = NULL;
-	struct PageInfo* pp = page_lookup(pgdir, va, pte_store);
+	pte_t *pte_store = NULL;
+	struct PageInfo* pp = page_lookup(pgdir, va, &pte_store);
 	if (pp) {
 		page_decref(pp);
-		**pte_store = 0;
+		*pte_store = 0;
 		tlb_invalidate(pgdir, va);	
+	}else{
+		cprintf("page remove failed");
+		mon_backtrace(0,0,0);
 	}
 	
 	// Fill this function in
