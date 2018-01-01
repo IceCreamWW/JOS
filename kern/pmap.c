@@ -290,7 +290,7 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
-	struct PageInfo * pi = page_free_list;
+	struct PageInfo *pi = page_free_list;
 	if (pi != NULL) {
 		page_free_list = page_free_list->pp_link;
 		// Writer Comment: 
@@ -362,21 +362,24 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	uint32_t dir_index = PDX(va);  // index in page directory
 	uint32_t tab_index = PTX(va);  // index in page table
 	pde_t pde = pgdir[dir_index];  // page directory entry
-	pte_t *pt = (pte_t *)PTE_ADDR(pde);  // page table address
+
 	if (pde & PTE_P) {
 		// if page dir entry exists, search in page table
-		
+		pte_t *pt = (pte_t *)PTE_ADDR(pde);  // page table address
+		return &(pt[tab_index]);
 	} else if (create) {
 		// create page table as well as page entry in that table
 		PageInfo *pt_page_info = page_alloc(ALLOC_ZERO);
 		if (!pt_page_info) {
 			return NULL;
 		} else {
+			pte_t *pt = (pte_t *)page2kva(pt_page_info); 
 			pgdir[dir_index] = page2kva(pt_page_info) | PTE_P | PTE_U | PTE_W;
-			
+			return  pt;
 		}
+	}else{
+		return NULL;
 	}
-	return NULL;
 }
 
 //
