@@ -444,15 +444,21 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	if (!pte_pt) {
 		return -E_NO_MEM;
 	} else {
+		// Writer Comment:
+		// According to requirements of function page_alloc()
+		// page_insert can sometimes even be responsible for adding pp_ref after page_alloc()
+		// So implicitly, there is no need to check pp's existence in free_list,
+		// we assert it has been page_allocate()d, and not page_free()d;
+
+		// The *elegant* way:
+		// add pp_ref first and then remove on demand
+		// if it's a 're-insert' page_remove won't free pp
+		// as pp's ref is at least 2, not 1
+		++pp->pp_ref;
 		if (*pte_pt & PTE_P) {
 			page_remove(pgdir, va);
 		} 
 		*pte_pt = page2pa(pp) | (perm | PTE_P);
-		if (page_free_list == pp) {
-			page_free_list = pp->pp_link;
-		}
-		++pp->pp_ref;
-		pp->pp_link = NULL;
 		return 0;
 	}
 }
@@ -505,7 +511,10 @@ page_remove(pde_t *pgdir, void *va)
 		page_decref(pp);
 		*pte_store = 0;
 		tlb_invalidate(pgdir, va);	
-	}else{
+	}
+	// For test use, in case nothing is removed, do not silently return
+	// alert failure and print backtrace
+	else{
 		cprintf("page remove failed");
 		mon_backtrace(0,0,0);
 	}
