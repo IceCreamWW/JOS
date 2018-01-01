@@ -266,7 +266,7 @@ page_init(void)
 	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
-		uint32_t kernel_end = ((uint32_t)boot_alloc(0) - KERNBASE) / PGSIZE;
+		uint32_t kernel_end = PADDR(boot_alloc(0)) / PGSIZE;
 		if ((i > 0 && i < npages_basemem) || i >= kernel_end) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
@@ -359,7 +359,23 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
+	uint32_t dir_index = PDX(va);  // index in page directory
+	uint32_t tab_index = PTX(va);  // index in page table
+	pde_t pde = pgdir[dir_index];  // page directory entry
+	pte_t *pt = (pte_t *)PTE_ADDR(pde);  // page table address
+	if (pde & PTE_P) {
+		// if page dir entry exists, search in page table
+		
+	} else if (create) {
+		// create page table as well as page entry in that table
+		PageInfo *pt_page_info = page_alloc(ALLOC_ZERO);
+		if (!pt_page_info) {
+			return NULL;
+		} else {
+			pgdir[dir_index] = page2kva(pt_page_info) | PTE_P | PTE_U | PTE_W;
+			
+		}
+	}
 	return NULL;
 }
 
