@@ -10,6 +10,7 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/pmap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -22,18 +23,50 @@ struct Command {
 	int (*func)(int argc, char** argv, struct Trapframe* tf);
 };
 
-int mon_printf(int argc, char **argv, struct Trapframe* tf){
-	int x = 1, y = 3, z = 4;
-	cprintf("x %d, y %x",3);
-	return 0;
-}
+
 
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "print", "Test cprintf function", mon_printf},
-	{ "backtrace", "Get backtrace display for exercise 11", mon_backtrace}
+	{ "backtrace", "Get backtrace display for exercise 11", mon_backtrace},
+	{ "showmappings", "get key mappings info for a range", mon_showmappings},
+	{ "setperm", "set or clear or change a mapping perm", mon_setperm}
 };
+
+/***** Manipulate Input and Ouput Format and Type *****/
+
+/* Convert *clean* (Ex. hex without '0x' prefix) char* number to uint_32 */
+uint32_t 
+atoi(char* number, int radix, int *error) {
+	const char *digits = "0123456789abcdef";
+	uint32_t result = 0;
+	char* index_ch = NULL;
+
+	while(*number) {
+		if ( (index_ch = strchr(digits, *number)) == NULL) {
+			if (error) *error = *error | 1;
+			return 0;
+		} else {
+			result  = (result * radix) + (index_ch - digits);
+			++number;
+		}
+	}
+	if (error)  *error = *error | 0;
+	return result;
+}
+void 
+showmapping(uintptr_t addr) {
+		pte_t *pte_pt = pgdir_walk(kern_pgdir, (void *)addr, false);
+		if (!pte_pt)
+			cprintf("%08x\tnot mapped yet\n", addr);
+		else {
+			cprintf("%08x\t%08x\t\tPTE_P: %d, PTE_W: %d, PTE_U: %d\n",
+					addr, PTE_ADDR(*pte_pt),
+					*pte_pt & PTE_P, (*pte_pt & PTE_W) >> 1, (*pte_pt & PTE_U) >> 2);
+		}
+}
+
 
 /***** Implementations of basic kernel monitor commands *****/
 
@@ -63,34 +96,16 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-
-
-static inline uint32_t
-read_argc(void)
-{
-	uint32_t argc;
-	asm volatile("movl 8(%%ebp),%0" : "=r" (argc));
-	return argc;
+int mon_printf(int argc, char **argv, struct Trapframe* tf){
+	int x = 1, y = 3, z = 4;
+	cprintf("x %d, y %x\n",3, 4);
+	return 0;
 }
-
-
-static inline uint32_t
-read_args(int which){
-	uint32_t argsp;
-	uint32_t arg;
-	
-	asm volatile("movl 12(%%ebp),%0" : "=r" (argsp));		
-	asm volatile("movl %1,%0" : "=r" (arg) : "r" (argsp + which * 4));
-	return arg;
-}
-
 
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	uint32_t ebp = read_ebp();
-
-	
 
 	while (*(uint32_t*)ebp) {
 		struct Eipdebuginfo info;
@@ -114,11 +129,89 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		
 	}
 	
-//	cprintf("ebp %x  eip %x  args %x %s %s %s %s\n",read_ebp(), read_eip(), argc, argv[0], argv[1], argv[2], argv[3]);
 	return 0;
 }
 
 
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
+	if (argc < 3) {
+		cprintf("showmappings addr_start addr_end, takes %d arguments, %d given\n", 2, argc - 1);
+		return 0;
+	}
+	
+	if ( strchr(argv[1], 'x') || strchr(argv[1], 'X')) argv[1] += 2;
+	if ( strchr(argv[2], 'x') || strchr(argv[2], 'X')) argv[2] += 2;
+
+	int error = 0;
+	uintptr_t addr_start = atoi(argv[1], 16, &error);
+	uintptr_t addr_end = atoi(argv[2], 16, &error);
+	
+	addr_start = addr_start > addr_end ? ROUNDUP(addr_start, PGSIZE) : ROUNDDOWN(addr_start, PGSIZE);
+	addr_end = addr_start > addr_end ? ROUNDDOWN(addr_end, PGSIZE) : ROUNDUP(addr_end, PGSIZE);
+
+	if (error) {
+		cprintf("Convert address to integer failed, check your parameter\n");
+		return 0;
+	}
+	
+	cprintf("\n  == show mappings from %08x to %08x ==\n\n", addr_start, addr_end);
+	cprintf("virtual addr\tpysical addr\tpremissions\n");
+
+	if (addr_start < addr_end)
+		for (; addr_start <= addr_end; addr_start += PGSIZE) 
+			showmapping(addr_start);
+	else
+		for (; addr_start >= addr_end; addr_start -= PGSIZE) 
+			showmapping(addr_start);
+	
+	return 0;
+}
+
+int
+mon_setperm(int argc, char **argv, struct Trapframe *tf) {
+	if (argc < 4) {
+		cprintf("setperm vaddr [0|1] [P|W|U], takes %d arguments, %d given\n", 3, argc - 1);
+		return 0;
+	}
+
+	int error = 0;
+	if ( strchr(argv[1], 'x') || strchr(argv[1], 'X')) argv[1] += 2;
+	uintptr_t addr = atoi(argv[1], 16, &error);	
+	if (error) {
+		cprintf("Convert address to integer failed, check your parameter\n");
+		return 0;
+	}
+	
+	pte_t *pte = pgdir_walk(kern_pgdir, (void *)ROUNDDOWN(atoi(argv[1], 16, 0), PGSIZE), false);
+	if (!pte) {
+		cprintf("Mapping is not available\n");
+	} else {
+		cprintf("old page mapping info: \nvirtual addr\tphysical addr\tpremissions\n");
+		showmapping(addr);
+
+		uint32_t perm;
+		switch(argv[3][0]) {
+			case 'P':	perm = PTE_P;	break;
+			case 'W':	perm = PTE_W;	break;
+			case 'U':	perm = PTE_U;	break;
+			default:
+				cprintf("parameter [P|U|W] get %c", argv[3][0]);
+				return 0;
+		}
+		switch(argv[2][0]) {
+			case '0':	*pte = *pte & ~perm; 	break;
+			case '1':	*pte = *pte | perm;	break;
+			default:
+				cprintf("parameter [0|1] get %c", argv[2][0]);
+				return 0;		
+		}
+		cprintf("new page mapping info: \nvirtual addr\tphysical addr\tpremissions\n");
+		showmapping(addr);
+	}
+
+	return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
