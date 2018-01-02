@@ -30,8 +30,9 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "print", "Test cprintf function", mon_printf},
 	{ "backtrace", "Get backtrace display for exercise 11", mon_backtrace},
-	{ "showmappings", "get key mappings info for a range", mon_showmappings},
-	{ "setperm", "set or clear or change a mapping perm", mon_setperm}
+	{ "showmappings", "get key mappings info in an addr range", mon_showmappings},
+	{ "setperm", "set or clear a mapping permission", mon_setperm},
+	{ "dump", "dump content in a physical or virtual addr range", mon_dump}
 };
 
 /***** Manipulate Input and Ouput Format and Type *****/
@@ -67,7 +68,23 @@ showmapping(uintptr_t addr) {
 		}
 }
 
-
+void
+dump(uint32_t addr, int is_va) {
+	if (is_va) {
+		pte_t *pte_pt = pgdir_walk(kern_pgdir, (void *)addr, false);
+		if (!pte_pt) {
+			cprintf("va %08x : not mapped yet\n", addr);
+		} else {
+			cprintf("va %08x : %08x\n", addr, *((uint32_t *)addr));
+		}
+	} else {
+		if (PGNUM(addr) >= npages) {
+			cprintf("pa %08x : not accessable \n", addr);
+		} else {
+			cprintf("pa %08x : %08x\n", addr,*((uint32_t *)(KADDR(addr))));
+		}
+	}
+}
 /***** Implementations of basic kernel monitor commands *****/
 
 int
@@ -136,8 +153,8 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 int
 mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
 	if (argc < 3) {
-		cprintf("showmappings addr_start addr_end, takes %d arguments, %d given\n", 2, argc - 1);
-		return 0;
+		cprintf("Usage : showmappings addr_start addr_end\ttakes %d arguments, %d given\n", 2, argc - 1);
+		return 1;
 	}
 	
 	if ( strchr(argv[1], 'x') || strchr(argv[1], 'X')) argv[1] += 2;
@@ -152,7 +169,7 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
 
 	if (error) {
 		cprintf("Convert address to integer failed, check your parameter\n");
-		return 0;
+		return 1;
 	}
 	
 	cprintf("\n  == show mappings from %08x to %08x ==\n\n", addr_start, addr_end);
@@ -164,14 +181,14 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
 	else
 		for (; addr_start >= addr_end; addr_start -= PGSIZE) 
 			showmapping(addr_start);
-	
+	cprintf("\n");
 	return 0;
 }
 
 int
 mon_setperm(int argc, char **argv, struct Trapframe *tf) {
 	if (argc < 4) {
-		cprintf("setperm vaddr [0|1] [P|W|U], takes %d arguments, %d given\n", 3, argc - 1);
+		cprintf("Usage : setperm vaddr [0|1] [P|W|U]\ttakes %d arguments, %d given\n", 3, argc - 1);
 		return 0;
 	}
 
@@ -187,7 +204,7 @@ mon_setperm(int argc, char **argv, struct Trapframe *tf) {
 	if (!pte) {
 		cprintf("Mapping is not available\n");
 	} else {
-		cprintf("old page mapping info: \nvirtual addr\tphysical addr\tpremissions\n");
+		cprintf("\n  ==  old page mapping info:  ==\n\nvirtual addr\tphysical addr\tpremissions\n");
 		showmapping(addr);
 
 		uint32_t perm;
@@ -201,14 +218,49 @@ mon_setperm(int argc, char **argv, struct Trapframe *tf) {
 		}
 		switch(argv[2][0]) {
 			case '0':	*pte = *pte & ~perm; 	break;
-			case '1':	*pte = *pte | perm;	break;
+			case '1':	*pte = *pte | perm;		break;
 			default:
 				cprintf("parameter [0|1] get %c", argv[2][0]);
-				return 0;		
+				return 1;		
 		}
-		cprintf("new page mapping info: \nvirtual addr\tphysical addr\tpremissions\n");
+		cprintf("\n  ==  new page mapping info:  ==\n\nvirtual addr\tphysical addr\tpremissions\n");
 		showmapping(addr);
+		cprintf("\n");
 	}
+
+	return 0;
+}
+
+int
+mon_dump(int argc, char **argv, struct Trapframe *tf) {
+	if (argc < 4) {
+		cprintf("Usage : dump [-p|v] addr_start addr_end\ttakes %d arguments, %d given\n", 3, argc - 1);
+		return 1;
+	}
+	
+	if ( strchr(argv[2], 'x') || strchr(argv[2], 'X')) argv[2] += 2;
+	if ( strchr(argv[3], 'x') || strchr(argv[3], 'X')) argv[3] += 2;
+
+	int error = 0;
+	uintptr_t addr_start = atoi(argv[2], 16, &error);
+	uintptr_t addr_end = atoi(argv[3], 16, &error);
+	
+	if (error) {
+		cprintf("Convert address to integer failed, check your parameter\n");
+		return 1;
+	}
+	if (argv[1][1] != 'v' && argv[1][1] != 'p') {
+		cprintf("parameter -[p|v] get %s\n", argv[1]);
+		return 1;
+	}
+	int is_va = (argv[1][1] == 'v');
+
+	if (addr_start < addr_end)
+		for (; addr_start <= addr_end; ++addr_start) 
+			dump(addr_start, is_va);
+	else
+		for (; addr_start >= addr_end; --addr_start) 
+			dump(addr_start, is_va);
 
 	return 0;
 }
