@@ -211,7 +211,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, KERNBASE, 0xffffffff, 0, PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, 0xffffffff - KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -407,7 +407,8 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	uint32_t va_end = va + size;
-	for (; va < va_end; va += PGSIZE, pa += PGSIZE) {
+	uint32_t i = 0;
+	for (; i < (size >> PGSHIFT); va += PGSIZE, pa += PGSIZE, ++i) {
 		pte_t *pte = pgdir_walk(pgdir, (void *)va, true);
 		*pte = (pte_t)(pa | (perm | PTE_P));
 	}
