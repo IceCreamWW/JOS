@@ -185,9 +185,11 @@ env_setup_vm(struct Env *e)
 
 	// LAB 3: Your code here.
 
+	++p->pp_ref;
+	e->env_pgdir = page2kva(p);
+
 	uintptr_t va = UENVS;
 	pte_t *pte_pt = NULL;
-
 	for (; va < UVPT; va += PGSIZE) {
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
@@ -280,6 +282,14 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	uintptr_t va_s = (uintptr_t)ROUNDDOWN(va, PGSIZE);
+	uintptr_t va_e = (uintptr_t)ROUNDUP(va + len, PGSIZE);
+	struct PageInfo* p;
+
+	for (; va_s < va_e; va_s += PGSIZE) {
+		p = page_alloc(0);
+		page_insert(e->env_pgdir, p, (void *)va_s, (PTE_U | PTE_W));
+	}
 }
 
 //
