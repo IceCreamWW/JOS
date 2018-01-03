@@ -365,19 +365,18 @@ load_icode(struct Env *e, uint8_t *binary)
 	// read ph from bianry -- size : SECTSIZE * 8
 	struct Proghdr *ph, *eph;
 	struct Elf* elf_hdr =  (struct Elf *)binary;
-	uintptr_t va;
+	uintptr_t raw_va, va;
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
 		for (; ph < eph; ph++) {
 		if (ph->p_type == ELF_PROG_LOAD) {
-			cprintf("ph->p_va = %0x\n", ph->p_va);
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
-			va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
-			// va = ph->p_va;			
+			raw_va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
+			va = (uint32_t)raw_va + (uint32_t)ph->p_va - (uint32_t)ROUNDDOWN(ph->p_va, PGSIZE);
 
-			memset((void *)(va + ph->p_va - ROUNDDOWN(ph->p_va)), 0, ph->p_memsz);
-			memcpy((void *)(va + ph->p_va - ROUNDDOWN(ph->p_va)), binary + ph->p_offset, ph->p_filesz);
+			memset((void *)(va), 0, ph->p_memsz);
+			memcpy((void *)(va), binary + ph->p_offset, ph->p_filesz);
 		} 
 	}
 	
@@ -530,10 +529,8 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	++curenv->env_runs;
-cprintf("==============\n");
-		lcr3(PADDR(curenv->env_pgdir));
-cprintf("==============\n");
-		env_pop_tf(&curenv->env_tf);
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&curenv->env_tf);
 	// panic("env_run not yet implemented");
 }
 
