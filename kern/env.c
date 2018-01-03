@@ -193,7 +193,13 @@ env_setup_vm(struct Env *e)
 	pte_t *pte_pt = NULL;
 
 
-	for (; va >= UTOP; va += PGSIZE) {
+	for (; va < UVPT; va += PGSIZE) {
+		// cprintf("%08x\n", va);
+		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
+		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
+	}
+	for (va = KERNBASE; va >= KERNBASE; va += PGSIZE) {
+		// cprintf("%08x\n", va);
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
@@ -244,6 +250,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	// to prevent the register values
 	// of a prior environment inhabiting this Env structure
 	// from "leaking" into our new environment.
+	
 	memset(&e->env_tf, 0, sizeof(e->env_tf));
 
 	// Set up appropriate initial values for the segment registers.
@@ -362,8 +369,7 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
-
-	for (; ph < eph; ph++) {
+		for (; ph < eph; ph++) {
 		if (ph->p_type == ELF_PROG_LOAD) {
 			cprintf("ph->p_va = %0x\n", ph->p_va);
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
@@ -374,14 +380,14 @@ load_icode(struct Env *e, uint8_t *binary)
 			memcpy((void *)va, binary + ph->p_offset, ph->p_filesz);
 		} 
 	}
-
+	
 	e->env_tf.tf_eip = elf_hdr->e_entry;	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
-	// LAB 3: Your code here.
+		// LAB 3: Your code here.
 	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
-}
+	}
 
 //
 // Allocates a new env with env_alloc, loads the named elf
@@ -394,12 +400,12 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	struct Env* e = NULL;
-	int r = env_alloc(&e, 0);
+		int r = env_alloc(&e, 0);
 	if(r < 0) panic("env_alloc: %e", r);
 	e->env_type = type;
 	load_icode(e, binary);
-	// cprintf("====================\n");
 }
+
 
 
 //
@@ -478,6 +484,7 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
+	//Debug here
 	asm volatile(
 		"\tmovl %0,%%esp\n"
 		"\tpopal\n"
@@ -523,10 +530,10 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	++curenv->env_runs;
-	cprintf("=======================\n");
-	lcr3(PADDR(curenv->env_pgdir));
-	cprintf("=======================\n");
-	env_pop_tf(&curenv->env_tf);
+cprintf("==============\n");
+		lcr3(PADDR(curenv->env_pgdir));
+cprintf("==============\n");
+		env_pop_tf(&curenv->env_tf);
 	// panic("env_run not yet implemented");
 }
 
