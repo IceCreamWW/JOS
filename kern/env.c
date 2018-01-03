@@ -376,8 +376,8 @@ load_icode(struct Env *e, uint8_t *binary)
 			va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
 			// va = ph->p_va;			
 
-			memset((void *)va, 0, ph->p_memsz);
-			memcpy((void *)va, binary + ph->p_offset, ph->p_filesz);
+			memset((void *)(va + ph->p_va - ROUNDDOWN(ph->p_va)), 0, ph->p_memsz);
+			memcpy((void *)(va + ph->p_va - ROUNDDOWN(ph->p_va)), binary + ph->p_offset, ph->p_filesz);
 		} 
 	}
 	
