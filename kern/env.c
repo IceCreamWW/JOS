@@ -192,18 +192,7 @@ env_setup_vm(struct Env *e)
 	uintptr_t va = UENVS;
 	pte_t *pte_pt = NULL;
 
-
-	for (; va < UVPT; va += PGSIZE) {
-		// cprintf("%08x\n", va);
-		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
-		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
-	}
-	for (va = KERNBASE; va >= KERNBASE; va += PGSIZE) {
-		// cprintf("%08x\n", va);
-		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
-		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
-	}
-	
+	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -369,33 +358,23 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
-	for (; ph < eph; ph++) {
-		if (ph->p_type == ELF_PROG_LOAD) {
-			// debug load_icode
-cprintf("va_Get : %08x\n", ph->p_va);
-			pte_t *pte_pt = pgdir_walk(e->env_pgdir, (void *)(ph->p_va), true);
-// cprintf("%08x\n", *pte_pt);
-			physaddr_t exec_pa = PTE_ADDR(*pte_pt);
-			uintptr_t exec_kva = (uintptr_t)KADDR(exec_pa);
-
-			memset((void *)exec_kva, 0, ph->p_memsz);
-			memcpy((void *)exec_kva, binary + ph->p_offset, ph->p_filesz);
-			/*
-			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
-			va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
-			// va = ph->p_va;			
-
-			memset((void *)va, 0, ph->p_memsz);
-			memcpy((void *)va, binary + ph->p_offset, ph->p_filesz);
-			*/
-		} 
-	}
 	
+	lcr3(PADDR(e->env_pgdir));
+
+	for (; ph < eph; ph++)
+		if (ph->p_type == ELF_PROG_LOAD) {
+			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
+			memset((void *)ph->p_va, 0, ph->p_memsz);
+			memcpy((void *)ph->p_va, binary+ph->p_offset, ph->p_filesz);
+		}
+
+	lcr3(PADDR(kern_pgdir));
+
 	e->env_tf.tf_eip = elf_hdr->e_entry;	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
-		// LAB 3: Your code here.
+	// LAB 3: Your code here.
 	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
 	}
 
@@ -412,7 +391,6 @@ env_create(uint8_t *binary, enum EnvType type)
 	struct Env* env = NULL;
 	// debug env_create
 	int r = env_alloc(&env, 0);
-	cprintf("e = %0x\n", env);
 	if(r < 0) panic("env_alloc: %e", r);
 	env->env_type = type;
 	load_icode(env, binary);
@@ -541,10 +519,7 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	++curenv->env_runs;
-cprintf("==============\n");
-		lcr3(PADDR(curenv->env_pgdir));
-cprintf("==============\n");
-		env_pop_tf(&curenv->env_tf);
-	// panic("env_run not yet implemented");
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&curenv->env_tf);
 }
 
