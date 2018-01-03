@@ -17,6 +17,43 @@ static struct Taskstate ts;
  */
 static struct Trapframe *last_tf;
 
+
+
+void handler_0();
+void handler_1();
+void handler_2();
+void handler_3();
+void handler_4();
+void handler_5();
+void handler_6();
+void handler_7();
+void handler_8();
+void handler_9();
+void handler_10();
+void handler_11();
+void handler_12();
+void handler_13();
+void handler_14();
+void handler_15();
+void handler_16();
+void handler_17();
+void handler_18();
+void handler_19();
+void handler_20();
+void handler_21();
+void handler_22();
+void handler_23();
+void handler_24();
+void handler_25();
+void handler_26();
+void handler_27();
+void handler_28();
+void handler_29();
+void handler_30();
+void handler_31();
+
+
+
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
  */
@@ -65,6 +102,39 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+
+	SETGATE(idt[0], 0, GD_KT, handler_0, 3);
+	SETGATE(idt[1], 0, GD_KT, handler_1, 3);
+	SETGATE(idt[2], 0, GD_KT, handler_2, 3);
+	SETGATE(idt[3], 0, GD_KT, handler_3, 3);
+	SETGATE(idt[4], 0, GD_KT, handler_4, 3);
+	SETGATE(idt[5], 0, GD_KT, handler_5, 3);
+	SETGATE(idt[6], 0, GD_KT, handler_6, 3);
+	SETGATE(idt[7], 0, GD_KT, handler_7, 3);
+	SETGATE(idt[8], 0, GD_KT, handler_8, 3);
+	SETGATE(idt[9], 0, GD_KT, handler_9, 3);
+	SETGATE(idt[10], 0, GD_KT, handler_10, 3);
+	SETGATE(idt[11], 0, GD_KT, handler_11, 3);
+	SETGATE(idt[12], 0, GD_KT, handler_12, 3);
+	SETGATE(idt[13], 0, GD_KT, handler_13, 3);
+	SETGATE(idt[14], 0, GD_KT, handler_14, 3);
+	SETGATE(idt[15], 0, GD_KT, handler_15, 3);
+	SETGATE(idt[16], 0, GD_KT, handler_16, 3);
+	SETGATE(idt[17], 0, GD_KT, handler_17, 3);
+	SETGATE(idt[18], 0, GD_KT, handler_18, 3);
+	SETGATE(idt[19], 0, GD_KT, handler_19, 3);
+	SETGATE(idt[20], 0, GD_KT, handler_20, 3);
+	SETGATE(idt[21], 0, GD_KT, handler_21, 3);
+	SETGATE(idt[22], 0, GD_KT, handler_22, 3);
+	SETGATE(idt[23], 0, GD_KT, handler_23, 3);
+	SETGATE(idt[24], 0, GD_KT, handler_24, 3);
+	SETGATE(idt[25], 0, GD_KT, handler_25, 3);
+	SETGATE(idt[26], 0, GD_KT, handler_26, 3);
+	SETGATE(idt[27], 0, GD_KT, handler_27, 3);
+	SETGATE(idt[28], 0, GD_KT, handler_28, 3);
+	SETGATE(idt[29], 0, GD_KT, handler_29, 3);
+	SETGATE(idt[30], 0, GD_KT, handler_30, 3);
+	SETGATE(idt[31], 0, GD_KT, handler_31, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
