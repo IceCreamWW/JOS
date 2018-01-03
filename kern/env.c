@@ -227,6 +227,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	int r;
 	struct Env *e;
 
+	// debug env_alloc
 	if (!(e = env_free_list))
 		return -E_NO_FREE_ENV;
 
@@ -362,22 +363,31 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 
-	// read ph from bianry -- size : SECTSIZE * 8
 	struct Proghdr *ph, *eph;
 	struct Elf* elf_hdr =  (struct Elf *)binary;
 	uintptr_t va;
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
-		for (; ph < eph; ph++) {
+	for (; ph < eph; ph++) {
 		if (ph->p_type == ELF_PROG_LOAD) {
-			cprintf("ph->p_va = %0x\n", ph->p_va);
+			// debug load_icode
+cprintf("va_Get : %08x\n", ph->p_va);
+			pte_t *pte_pt = pgdir_walk(e->env_pgdir, (void *)(ph->p_va), true);
+// cprintf("%08x\n", *pte_pt);
+			physaddr_t exec_pa = PTE_ADDR(*pte_pt);
+			uintptr_t exec_kva = (uintptr_t)KADDR(exec_pa);
+
+			memset((void *)exec_kva, 0, ph->p_memsz);
+			memcpy((void *)exec_kva, binary + ph->p_offset, ph->p_filesz);
+			/*
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 			va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
 			// va = ph->p_va;			
 
 			memset((void *)va, 0, ph->p_memsz);
 			memcpy((void *)va, binary + ph->p_offset, ph->p_filesz);
+			*/
 		} 
 	}
 	
@@ -399,13 +409,14 @@ load_icode(struct Env *e, uint8_t *binary)
 void
 env_create(uint8_t *binary, enum EnvType type)
 {
-	struct Env* e = NULL;
-		int r = env_alloc(&e, 0);
+	struct Env* env = NULL;
+	// debug env_create
+	int r = env_alloc(&env, 0);
+	cprintf("e = %0x\n", env);
 	if(r < 0) panic("env_alloc: %e", r);
-	e->env_type = type;
-	load_icode(e, binary);
+	env->env_type = type;
+	load_icode(env, binary);
 }
-
 
 
 //
