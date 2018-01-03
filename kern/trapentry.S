@@ -46,6 +46,38 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+	TRAPHANDLER(handler_8, 8)
+	TRAPHANDLER(handler_10, 10)
+	TRAPHANDLER(handler_11, 11)
+	TRAPHANDLER(handler_12, 12)
+	TRAPHANDLER(handler_13, 13)
+	TRAPHANDLER(handler_14, 14)
+	TRAPHANDLER_NOEC(handler_0, 0)
+	TRAPHANDLER_NOEC(handler_1, 1)
+	TRAPHANDLER_NOEC(handler_2, 2)
+	TRAPHANDLER_NOEC(handler_3, 3)
+	TRAPHANDLER_NOEC(handler_4, 4)
+	TRAPHANDLER_NOEC(handler_5, 5)
+	TRAPHANDLER_NOEC(handler_6, 6)
+	TRAPHANDLER_NOEC(handler_7, 7)
+	TRAPHANDLER_NOEC(handler_9, 9)
+	TRAPHANDLER_NOEC(handler_16, 16)
+	TRAPHANDLER_NOEC(handler_17, 17)
+	TRAPHANDLER_NOEC(handler_18, 18)
+	TRAPHANDLER_NOEC(handler_19, 19)
+	TRAPHANDLER_NOEC(handler_20, 20)
+	TRAPHANDLER_NOEC(handler_21, 21)
+	TRAPHANDLER_NOEC(handler_22, 22)
+	TRAPHANDLER_NOEC(handler_23, 23)
+	TRAPHANDLER_NOEC(handler_24, 24)
+	TRAPHANDLER_NOEC(handler_25, 25)
+	TRAPHANDLER_NOEC(handler_26, 26)
+	TRAPHANDLER_NOEC(handler_27, 27)
+	TRAPHANDLER_NOEC(handler_28, 28)
+	TRAPHANDLER_NOEC(handler_29, 29)
+	TRAPHANDLER_NOEC(handler_30, 30)
+	TRAPHANDLER_NOEC(handler_31, 31)
+
 
 
 
@@ -53,3 +85,22 @@
  * Lab 3: Your code here for _alltraps
  */
 
+_alltraps:
+	push %ebp
+	mov %esp, $ebp
+	push %al
+	push %ss
+	push %esp
+	pushfd
+	push %al
+	push %cs
+	push %eip
+	push 12(%ebp)
+	push 8(%ebp)
+	push %al
+	push %ds
+	push %al
+	push %es
+	pushal
+	call trap
+	
