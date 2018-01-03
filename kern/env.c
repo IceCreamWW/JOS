@@ -192,7 +192,14 @@ env_setup_vm(struct Env *e)
 	uintptr_t va = UENVS;
 	pte_t *pte_pt = NULL;
 
-	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
+	for (; va < UVPT; va += PGSIZE) {
+		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
+		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
+	}
+	for (va = KERNBASE; va >= KERNBASE; va += PGSIZE) {
+		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
+		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
+	}
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
