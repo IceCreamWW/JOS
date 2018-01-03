@@ -187,13 +187,17 @@ env_setup_vm(struct Env *e)
 
 	++p->pp_ref;
 	e->env_pgdir = page2kva(p);
-
+	// memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
+	
 	uintptr_t va = UENVS;
 	pte_t *pte_pt = NULL;
-	for (; va < UVPT; va += PGSIZE) {
+
+
+	for (; va >= UTOP; va += PGSIZE) {
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
+	
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -354,17 +358,23 @@ load_icode(struct Env *e, uint8_t *binary)
 	// read ph from bianry -- size : SECTSIZE * 8
 	struct Proghdr *ph, *eph;
 	struct Elf* elf_hdr =  (struct Elf *)binary;
+	uintptr_t va;
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
 
 	for (; ph < eph; ph++) {
 		if (ph->p_type == ELF_PROG_LOAD) {
+			cprintf("ph->p_va = %0x\n", ph->p_va);
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
-			memset((void *)ph->p_va, 0, ph->p_memsz);
-			memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+			va = (uintptr_t)page2kva(page_lookup(e->env_pgdir, (void *)ph->p_va, 0)); 
+			// va = ph->p_va;			
+
+			memset((void *)va, 0, ph->p_memsz);
+			memcpy((void *)va, binary + ph->p_offset, ph->p_filesz);
 		} 
 	}
+
 	e->env_tf.tf_eip = elf_hdr->e_entry;	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
@@ -388,7 +398,9 @@ env_create(uint8_t *binary, enum EnvType type)
 	if(r < 0) panic("env_alloc: %e", r);
 	e->env_type = type;
 	load_icode(e, binary);
+	// cprintf("====================\n");
 }
+
 
 //
 // Frees env e and all memory it uses.
@@ -511,7 +523,9 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	++curenv->env_runs;
-	lcr3((uintptr_t)curenv->env_pgdir);
+	cprintf("=======================\n");
+	lcr3(PADDR(curenv->env_pgdir));
+	cprintf("=======================\n");
 	env_pop_tf(&curenv->env_tf);
 	// panic("env_run not yet implemented");
 }
