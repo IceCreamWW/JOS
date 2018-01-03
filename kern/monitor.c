@@ -157,8 +157,8 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf) {
 		return 1;
 	}
 	
-	if ( strchr(argv[1], 'x') || strchr(argv[1], 'X')) argv[1] += 2;
-	if ( strchr(argv[2], 'x') || strchr(argv[2], 'X')) argv[2] += 2;
+	if ( argv[1][0] == '0' && (argv[1][1] == 'x' || argv[1][1] == 'X')) argv[1] += 2;
+	if ( argv[2][0] == '0' && (argv[2][1] == 'x' || argv[2][1] == 'X')) argv[2] += 2;
 
 	int error = 0;
 	uintptr_t addr_start = atoi(argv[1], 16, &error);
@@ -238,8 +238,8 @@ mon_dump(int argc, char **argv, struct Trapframe *tf) {
 		return 1;
 	}
 	
-	if ( strchr(argv[2], 'x') || strchr(argv[2], 'X')) argv[2] += 2;
-	if ( strchr(argv[3], 'x') || strchr(argv[3], 'X')) argv[3] += 2;
+	if ( argv[2][0] == '0' && (argv[2][1] == 'x' || argv[2][1] == 'X')) argv[2] += 2;
+	if ( argv[3][0] == '0' && (argv[3][1] == 'x' || argv[3][1] == 'X')) argv[3] += 2;
 
 	int error = 0;
 	uintptr_t addr_start = atoi(argv[2], 16, &error);
