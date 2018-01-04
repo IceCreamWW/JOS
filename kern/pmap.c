@@ -323,7 +323,7 @@ page_init(void)
 	page_free_list = NULL;
 	for (i = 0; i < npages; i++) {
 		uint32_t kernel_end = PADDR(boot_alloc(0)) / PGSIZE;
-		if ((i > 0 && i < npages_basemem) || i >= kernel_end) {
+		if ( ((i > 0 && i < npages_basemem) || i >= kernel_end)) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
@@ -611,7 +611,14 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	void *ret = (void *)base;
+
+	size = (size_t)ROUNDUP(size, PGSIZE);
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT);
+	base += size;
+
+	return ret;
+	//panic("mmio_map_region not implemented");
 }
 
 static uintptr_t user_mem_check_addr;
