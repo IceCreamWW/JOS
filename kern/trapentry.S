@@ -46,12 +46,14 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+
 	TRAPHANDLER(handler_8, 8);
 	TRAPHANDLER(handler_10, 10);
 	TRAPHANDLER(handler_11, 11);
 	TRAPHANDLER(handler_12, 12);
 	TRAPHANDLER(handler_13, 13);
 	TRAPHANDLER(handler_14, 14);
+
 	TRAPHANDLER_NOEC(handler_0, T_DIVIDE);
 	TRAPHANDLER_NOEC(handler_1, T_DEBUG);
 	TRAPHANDLER_NOEC(handler_2, 2);
@@ -78,10 +80,8 @@
 	TRAPHANDLER_NOEC(handler_29, 29);
 	TRAPHANDLER_NOEC(handler_30, 30);
 	TRAPHANDLER_NOEC(handler_31, 31);
-
-
-
-
+	
+	TRAPHANDLER_NOEC(handler_48, 48);
 /*
  * Lab 3: Your code here for _alltraps
  */

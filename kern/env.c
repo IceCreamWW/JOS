@@ -196,7 +196,7 @@ env_setup_vm(struct Env *e)
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
-	for (va = KERNBASE; va >= KERNBASE; va += PGSIZE) {
+	for (va = KERNBASE - PTSIZE; va >= KERNBASE - PTSIZE; va += PGSIZE) {
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
@@ -361,7 +361,6 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	struct Proghdr *ph, *eph;
 	struct Elf* elf_hdr =  (struct Elf *)binary;
-	uintptr_t va;
 
 	ph = (struct Proghdr *)((uint8_t *) elf_hdr + elf_hdr->e_phoff);
 	eph = ph + elf_hdr->e_phnum;
@@ -372,7 +371,7 @@ load_icode(struct Env *e, uint8_t *binary)
 		if (ph->p_type == ELF_PROG_LOAD) {
 			region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 			memset((void *)ph->p_va, 0, ph->p_memsz);
-			memcpy((void *)ph->p_va, binary+ph->p_offset, ph->p_filesz);
+			memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 		}
 
 	lcr3(PADDR(kern_pgdir));
@@ -383,7 +382,7 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
-	}
+}
 
 //
 // Allocates a new env with env_alloc, loads the named elf

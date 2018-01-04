@@ -51,7 +51,7 @@ void handler_28();
 void handler_29();
 void handler_30();
 void handler_31();
-
+void handler_48();
 
 
 /* Interrupt descriptor table.  (Must be built at run time because
@@ -103,38 +103,40 @@ trap_init(void)
 
 	// LAB 3: Your code here.
 
-	SETGATE(idt[0], 0, GD_KT, handler_0, 3);
-	SETGATE(idt[1], 0, GD_KT, handler_1, 3);
-	SETGATE(idt[2], 0, GD_KT, handler_2, 3);
+	SETGATE(idt[0], 0, GD_KT, handler_0, 0);
+	SETGATE(idt[1], 0, GD_KT, handler_1, 0);
+	SETGATE(idt[2], 0, GD_KT, handler_2, 0);
 	SETGATE(idt[3], 0, GD_KT, handler_3, 3);
-	SETGATE(idt[4], 0, GD_KT, handler_4, 3);
-	SETGATE(idt[5], 0, GD_KT, handler_5, 3);
-	SETGATE(idt[6], 0, GD_KT, handler_6, 3);
-	SETGATE(idt[7], 0, GD_KT, handler_7, 3);
-	SETGATE(idt[8], 0, GD_KT, handler_8, 3);
-	SETGATE(idt[9], 0, GD_KT, handler_9, 3);
-	SETGATE(idt[10], 0, GD_KT, handler_10, 3);
-	SETGATE(idt[11], 0, GD_KT, handler_11, 3);
-	SETGATE(idt[12], 0, GD_KT, handler_12, 3);
-	SETGATE(idt[13], 0, GD_KT, handler_13, 3);
-	SETGATE(idt[14], 0, GD_KT, handler_14, 3);
-	SETGATE(idt[15], 0, GD_KT, handler_15, 3);
-	SETGATE(idt[16], 0, GD_KT, handler_16, 3);
-	SETGATE(idt[17], 0, GD_KT, handler_17, 3);
-	SETGATE(idt[18], 0, GD_KT, handler_18, 3);
-	SETGATE(idt[19], 0, GD_KT, handler_19, 3);
-	SETGATE(idt[20], 0, GD_KT, handler_20, 3);
-	SETGATE(idt[21], 0, GD_KT, handler_21, 3);
-	SETGATE(idt[22], 0, GD_KT, handler_22, 3);
-	SETGATE(idt[23], 0, GD_KT, handler_23, 3);
-	SETGATE(idt[24], 0, GD_KT, handler_24, 3);
-	SETGATE(idt[25], 0, GD_KT, handler_25, 3);
-	SETGATE(idt[26], 0, GD_KT, handler_26, 3);
-	SETGATE(idt[27], 0, GD_KT, handler_27, 3);
-	SETGATE(idt[28], 0, GD_KT, handler_28, 3);
-	SETGATE(idt[29], 0, GD_KT, handler_29, 3);
-	SETGATE(idt[30], 0, GD_KT, handler_30, 3);
-	SETGATE(idt[31], 0, GD_KT, handler_31, 3);
+	SETGATE(idt[4], 0, GD_KT, handler_4, 0);
+	SETGATE(idt[5], 0, GD_KT, handler_5, 0);
+	SETGATE(idt[6], 0, GD_KT, handler_6, 0);
+	SETGATE(idt[7], 0, GD_KT, handler_7, 0);
+	SETGATE(idt[8], 0, GD_KT, handler_8, 0);
+	SETGATE(idt[9], 0, GD_KT, handler_9, 0);
+	SETGATE(idt[10], 0, GD_KT, handler_10, 0);
+	SETGATE(idt[11], 0, GD_KT, handler_11, 0);
+	SETGATE(idt[12], 0, GD_KT, handler_12, 0);
+	SETGATE(idt[13], 0, GD_KT, handler_13, 0);
+	SETGATE(idt[14], 0, GD_KT, handler_14, 0);
+	SETGATE(idt[15], 0, GD_KT, handler_15, 0);
+	SETGATE(idt[16], 0, GD_KT, handler_16, 0);
+	SETGATE(idt[17], 0, GD_KT, handler_17, 0);
+	SETGATE(idt[18], 0, GD_KT, handler_18, 0);
+	SETGATE(idt[19], 0, GD_KT, handler_19, 0);
+	SETGATE(idt[20], 0, GD_KT, handler_20, 0);
+	SETGATE(idt[21], 0, GD_KT, handler_21, 0);
+	SETGATE(idt[22], 0, GD_KT, handler_22, 0);
+	SETGATE(idt[23], 0, GD_KT, handler_23, 0);
+	SETGATE(idt[24], 0, GD_KT, handler_24, 0);
+	SETGATE(idt[25], 0, GD_KT, handler_25, 0);
+	SETGATE(idt[26], 0, GD_KT, handler_26, 0);
+	SETGATE(idt[27], 0, GD_KT, handler_27, 0);
+	SETGATE(idt[28], 0, GD_KT, handler_28, 0);
+	SETGATE(idt[29], 0, GD_KT, handler_29, 0);
+	SETGATE(idt[30], 0, GD_KT, handler_30, 0);
+	SETGATE(idt[31], 0, GD_KT, handler_31, 0);
+	
+	SETGATE(idt[48], 0, GD_KT, handler_48, 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -214,6 +216,18 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+
+	switch (tf->tf_trapno) {
+		case 3:
+			monitor(tf);				break;
+		case 14:
+			page_fault_handler(tf);		break;
+		case 48:
+			syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			break;
+		default:
+			break;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
