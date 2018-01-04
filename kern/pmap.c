@@ -323,7 +323,8 @@ page_init(void)
 	page_free_list = NULL;
 	for (i = 0; i < npages; i++) {
 		uint32_t kernel_end = PADDR(boot_alloc(0)) / PGSIZE;
-		if ( ((i > 0 && i < npages_basemem) || i >= kernel_end)) {
+		if ( ((i > 0 && i < npages_basemem) || i >= kernel_end) &&
+			 (i != MPENTRY_PADDR >> PGSHIFT)) {
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
