@@ -89,15 +89,15 @@ read_args(int which){
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	uint32_t ebp = read_ebp();
+	uint32_t *ebp = (uint32_t *)read_ebp();
 
-	while (*(uint32_t *)ebp) {
+	while (ebp) {
 		struct Eipdebuginfo info;
-		uint32_t eip = *((uint32_t *)ebp + 1);
+		uint32_t eip = *(ebp + 1);
 		uint32_t argv[5];
 		int i;
 		for (i=1; i<=5; ++i) {
-			argv[i - 1] = *((uint32_t *)ebp + 1 + i);
+			argv[i - 1] = *(ebp + 1 + i);
 		}
 		debuginfo_eip(eip, &info);
 
@@ -109,7 +109,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		eip_fn_name[size - 1] = 0;
 
 		cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x  %s:%d: %s+%d\n", ebp, eip, argv[0], argv[1], argv[2], argv[3], argv[4], info.eip_file, info.eip_line, eip_fn_name, eip - info.eip_fn_addr);
-       		ebp = *((uint32_t *)ebp);
+   		ebp = (uint32_t *)*ebp;
 		
 	}
 	
