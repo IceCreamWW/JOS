@@ -479,7 +479,6 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
-	cprintf("!!eax in tf: %08x\n", tf->tf_regs.reg_eax);
 	//Debug here
 	asm volatile(
 		"\tmovl %0,%%esp\n"

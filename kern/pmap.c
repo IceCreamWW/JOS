@@ -578,7 +578,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 		return -E_FAULT;
 	
 	for (; va_s < va_e; va_s += PGSIZE) {
-		pte = pgdir_walk(env->env_pgdir, va_s, 0);
+		pte = pgdir_walk(env->env_pgdir, (void *)va_s, 0);
 		if (!(*pte & (perm | PTE_P))) {
 			return -E_FAULT;
 		}
