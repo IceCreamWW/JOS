@@ -11,6 +11,7 @@ umain(int argc, char **argv)
 {
 	int i;
 
+	// debug here
 	cprintf("Making sure bss works right...\n");
 	for (i = 0; i < ARRAYSIZE; i++)
 		if (bigarray[i] != 0)

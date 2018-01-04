@@ -219,12 +219,12 @@ trap_dispatch(struct Trapframe *tf)
 
 	switch (tf->tf_trapno) {
 		case 3:
-			monitor(tf);				break;
+			monitor(tf);				return;
 		case 14:
-			page_fault_handler(tf);		break;
+			page_fault_handler(tf);		return;
 		case 48:
 			syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
-			break;
+			return;
 		default:
 			break;
 	}
