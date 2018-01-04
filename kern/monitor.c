@@ -108,7 +108,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		memcpy(eip_fn_name, info.eip_fn_name, size);
 		eip_fn_name[size - 1] = 0;
 
-		cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x  %s:%d: %s+%d\n",read_ebp(), eip, argv[0], argv[1], argv[2], argv[3], argv[4], info.eip_file, info.eip_line, eip_fn_name, eip - info.eip_fn_addr);
+		cprintf("ebp %08x  eip %08x  args %08x %08x %08x %08x %08x  %s:%d: %s+%d\n", ebp, eip, argv[0], argv[1], argv[2], argv[3], argv[4], info.eip_file, info.eip_line, eip_fn_name, eip - info.eip_fn_addr);
        		ebp = *((uint32_t *)ebp);
 		
 	}
