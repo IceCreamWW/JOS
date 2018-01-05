@@ -41,7 +41,6 @@ void
 sched_halt(void)
 {
 	int i;
-
 	// For debugging and testing purposes, if there are no runnable
 	// environments in the system, then drop into the kernel monitor.
 	for (i = 0; i < NENV; i++) {
@@ -55,6 +54,7 @@ sched_halt(void)
 		while (1)
 			monitor(NULL);
 	}
+
 
 	// Mark that no environment is running on this CPU
 	curenv = NULL;

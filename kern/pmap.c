@@ -280,7 +280,12 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	uint32_t i = 0;
+	uintptr_t kstacktop_i = 0;
+	for (; i < NCPU; ++i) {
+		kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -320,9 +325,9 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+	uint32_t kernel_end = PADDR(boot_alloc(0)) >> PGSHIFT;
 	page_free_list = NULL;
 	for (i = 0; i < npages; i++) {
-		uint32_t kernel_end = PADDR(boot_alloc(0)) / PGSIZE;
 		if ( ((i > 0 && i < npages_basemem) || i >= kernel_end) &&
 			 (i != MPENTRY_PADDR >> PGSHIFT)) {
 			pages[i].pp_ref = 0;
@@ -615,7 +620,9 @@ mmio_map_region(physaddr_t pa, size_t size)
 	void *ret = (void *)base;
 
 	size = (size_t)ROUNDUP(size, PGSIZE);
-	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT);
+	pa = (physaddr_t)ROUNDDOWN(pa, PGSIZE);
+
+	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
 	base += size;
 
 	return ret;
