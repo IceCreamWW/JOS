@@ -36,6 +36,7 @@ lock_kernel(void)
 static inline void
 unlock_kernel(void)
 {
+	
 	spin_unlock(&kernel_lock);
 
 	// Normally we wouldn't need to do this, but QEMU only runs
