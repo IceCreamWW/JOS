@@ -30,22 +30,16 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 
-	struct Env *e;
-	int i, cur=0;
-	// debug sched_yield
-	if (curenv) cur=ENVX(curenv->env_id);
-		else cur = 0;
-	for (i = 0; i < NENV; ++i) {
-		int j = (cur+i) % NENV;
-		if (envs[j].env_status == ENV_RUNNABLE) {
-			if (j == 1) 
-				cprintf("\n");
-			env_run(envs + j);
+	int start = curenv ? (ENVX(curenv->env_id) + 1) % NENV : 0;
+	int i = start;
+	for (; i < start + NENV; ++i) {
+		if (envs[i % NENV].env_status == ENV_RUNNABLE) {
+			env_run(&envs[i % NENV]);
+			return;
 		}
 	}
 	if (curenv && curenv->env_status == ENV_RUNNING)
 		env_run(curenv);
-	// sched_halt never returns
 	sched_halt();
 }
 
