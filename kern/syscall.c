@@ -86,7 +86,16 @@ sys_exofork(void)
 	// will appear to return 0.
 
 	// LAB 4: Your code here.
-	panic("sys_exofork not implemented");
+	struct Env* new_env = NULL;
+	int r = env_alloc(&new_env, curenv->env_id);
+	if (r)		return r;
+	new_env->env_status = ENV_NOT_RUNNABLE;
+
+	// Here, env_tf is a struct instead of a pointer, so the bellow operation is a deep copy, no worry;
+	new_env->env_tf = curenv->env_tf;
+	new_env->env_tf.tf_regs.reg_eax = 0;
+	return new_env->env_id;
+	// panic("sys_exofork not implemented");
 }
 
 // Set envid's env_status to status, which must be ENV_RUNNABLE
@@ -106,7 +115,13 @@ sys_env_set_status(envid_t envid, int status)
 	// envid's status.
 
 	// LAB 4: Your code here.
-	panic("sys_env_set_status not implemented");
+	if (status != ENV_NOT_RUNNABLE && status != ENV_RUNNABLE) return -E_INVAL;
+	struct Env* env = NULL;
+	int r = envid2env(envid, &env, 1);
+	if(r) return r;
+	env->env_status = status;
+	return 0;
+	//panic("sys_env_set_status not implemented");
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -151,7 +166,29 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	//   allocated!
 
 	// LAB 4: Your code here.
-	panic("sys_page_alloc not implemented");
+	if ((perm & (~PTE_SYSCALL)) || !(perm & PTE_U) || !(perm & PTE_P))	return -E_INVAL;
+
+	// environment does not exist
+	struct Env* env = NULL;
+	int r = envid2env(envid, &env, 1);
+	if (r)	return r;
+	// va >= UTOP or va not page aligned
+	if ( ((uintptr_t)va & 0XFFF) || (uintptr_t)va > UTOP) return -E_INVAL;
+
+	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+	++pp->pp_ref;
+
+	// not memory to allocate new page
+	if (!pp) return -E_NO_MEM;
+
+	// no memory to allocate new page tables
+	r = page_insert(env->env_pgdir, pp, va, perm);
+	if (r) {	
+		page_free(pp);
+		return r; 
+	};
+	return 0;
+//	panic("sys_page_alloc not implemented");
 }
 
 // Map the page of memory at 'srcva' in srcenvid's address space
@@ -182,6 +219,37 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	//   check the current permissions on the page.
 
 	// LAB 4: Your code here.
+
+	if ((uintptr_t)srcva >= UTOP || (uintptr_t)srcva & 0xFFF ||
+		(uintptr_t)dstva >= UTOP ||  (uintptr_t)dstva & 0xFFF) {
+		return -E_INVAL;
+	}
+	if ((perm & (~PTE_SYSCALL)) || !(perm & PTE_U) || !(perm & PTE_P))	return -E_INVAL;
+
+
+	struct Env* srcenv = NULL;
+	struct Env* dstenv = NULL;
+	int r;
+
+	r = envid2env(srcenvid, &srcenv, 1);
+	if (r)		return r;
+	r = envid2env(dstenvid, &dstenv, 1);
+	if (r)		return r;
+
+	pte_t *pte_pt = NULL;
+	struct PageInfo *pp = page_lookup(srcenv->env_pgdir, srcva, &pte_pt);
+	if (!pp) {
+		return -E_INVAL;
+	}
+	if ( !((*pte_pt & PTE_W) == 0)  && ((perm & PTE_W) == 1)) {
+		return -E_INVAL;
+	}
+
+	r = page_insert(dstenv->env_pgdir, pp, dstva, perm);
+	if (r)		return r;
+
+	return 0;
+
 	panic("sys_page_map not implemented");
 }
 
@@ -198,7 +266,16 @@ sys_page_unmap(envid_t envid, void *va)
 	// Hint: This function is a wrapper around page_remove().
 
 	// LAB 4: Your code here.
-	panic("sys_page_unmap not implemented");
+	if ((uintptr_t)va >= UTOP || (uintptr_t)va & 0xFFF) {
+		return -E_INVAL;
+	}
+
+	struct Env* env = NULL;
+	int r = envid2env(envid, &env, 1);
+	if (r)		return r;
+	page_remove(env->env_pgdir, va);
+	return 0;
+	// panic("sys_page_unmap not implemented");
 }
 
 // Try to send 'value' to the target env 'envid'.
@@ -287,6 +364,33 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			break;
 		case SYS_env_destroy:
 			ret =  sys_env_destroy((envid_t)a1);
+			break;
+		case SYS_page_alloc:
+			ret = sys_page_alloc((envid_t)a1, (void *)a2, a3);
+			break;
+		case SYS_page_map:
+			ret = sys_page_map((envid_t)a1, (void *)a2, (envid_t)a3, (void *)a4, a5);
+			break;
+		case SYS_page_unmap:
+			ret = sys_page_unmap((envid_t)a1, (void *)a2);
+			break;
+		case SYS_exofork:
+			ret = sys_exofork();
+			break;
+		case SYS_env_set_status:
+			ret = sys_env_set_status((envid_t)a1, a2);
+			break;
+		case SYS_env_set_pgfault_upcall:
+			ret = sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
+			break;
+		case SYS_yield:
+			sys_yield();
+			break;
+		case SYS_ipc_try_send:
+			ret = sys_ipc_try_send((envid_t)a1, a2, (void *)a3, a4);
+			break;
+		case SYS_ipc_recv:
+			ret = sys_ipc_recv((void *)a1);
 			break;
 		default:
 			ret = -E_INVAL;
