@@ -621,6 +621,9 @@ mmio_map_region(physaddr_t pa, size_t size)
 
 	size = (size_t)ROUNDUP(size, PGSIZE);
 	pa = (physaddr_t)ROUNDDOWN(pa, PGSIZE);
+	
+	if ((base + size) > MMIOLIM)
+		panic("mmio_map_region  reservation overflow MMIO");	
 
 	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
 	base += size;
