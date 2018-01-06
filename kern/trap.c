@@ -397,6 +397,29 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 4: Your code here.
 
+	if (curenv->env_pgfault_upcall) {
+		struct UTrapframe *utf = NULL;
+		uintptr_t utf_addr;
+		if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp <= UXSTACKTOP - 1) {
+			utf_addr = (tf->tf_esp  - 4 - sizeof(struct UTrapframe));
+		} else {
+			utf_addr = (UXSTACKTOP - sizeof(struct UTrapframe));
+		}
+		user_mem_assert(curenv, (const void *)utf_addr, sizeof(struct UTrapframe), PTE_W);
+		//debug pagefault handler
+		utf = (struct UTrapframe *)utf_addr;
+		utf->utf_eip = tf->tf_eip;
+		utf->utf_fault_va = fault_va;
+		utf->utf_regs = tf->tf_regs;
+		utf->utf_err = tf->tf_err;
+		utf->utf_eflags = tf->tf_eflags;
+		utf->utf_esp = tf->tf_esp;
+
+		curenv->env_tf.tf_esp = utf_addr;
+		curenv->env_tf.tf_eip = (uintptr_t)(curenv->env_pgfault_upcall);
+		env_run(curenv);
+	}
+
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
