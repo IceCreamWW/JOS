@@ -6,6 +6,7 @@
 // PTE_COW marks copy-on-write page table entries.
 // It is one of the bits explicitly allocated to user processes (PTE_AVAIL).
 #define PTE_COW		0x800
+extern void _pgfault_upcall();
 
 //
 // Custom page fault handler - if faulting page is copy-on-write,
@@ -26,15 +27,34 @@ pgfault(struct UTrapframe *utf)
 
 	// LAB 4: Your code here.
 
+	if (!(err & FEC_WR))
+		panic("fork.c : pgfault recieves fault not cased by write\n");
+
+	if (!((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_COW)))
+		panic("fork.c : pgfault recieves fault not on copy-on-write page\n");
+
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
 	// page to the old page's address.
 	// Hint:
 	//   You should make three system calls.
-
+	
 	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+	
+	// addr is a fault address, it might not be page aligned.
+	// Although this does not matter for PDX and PGNUM because they simply ignore the last 12 bit,
+	// system calls about page will complain
+	addr = ROUNDDOWN(addr, PGSIZE);
+	if (sys_page_alloc(0, PFTEMP, PTE_W|PTE_P|PTE_U) < 0)
+		panic("fork.c : pgfault fail on page alloc");
+	memcpy(PFTEMP, addr, PGSIZE);
+	if (sys_page_map(0, PFTEMP, 0, addr, PTE_U|PTE_P|PTE_W) < 0)
+		panic("fork.c : pgfault fail on page map");
+	if (sys_page_unmap(0, PFTEMP) < 0)
+		panic("fork.c : pgfault fail on page unmap");
+	return;
+	
+	// panic("pgfault not implemented");
 }
 
 //
@@ -51,11 +71,23 @@ pgfault(struct UTrapframe *utf)
 static int
 duppage(envid_t envid, unsigned pn)
 {
-	int r;
-
+	// int r;
+	
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)){
+		if (sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_COW|PTE_P|PTE_U) < 0)
+			panic("fork.c : duppage fail on page_map, perm : PTE_P|PTE_U|PTE_COW");
+		if (sys_page_map(0, (void *)(pn * PGSIZE), 0, (void *)(pn * PGSIZE), PTE_COW|PTE_P|PTE_U) < 0)
+			panic("fork.c : duppage fail on page_map self, perm : PTE_P|PTE_U|PTE_COW");
+		// the line below is not possible because uvpt must be read only
+		// otherwise user would be able to change its own permission
+		// uvpt[pn] = (uvpt[pn] & (~PTE_W)) | PTE_COW;
+	} else {
+		if (sys_page_map(0, (void *)(pn * PGSIZE), envid, (void *)(pn * PGSIZE), PTE_P|PTE_U) < 0)
+			panic("fork.c : duppage fail on page_map, perm : PTE_P|PTE_U");
+	}
 	return 0;
+	// panic("duppage not implemented");
 }
 
 //
@@ -78,8 +110,70 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
-}
+	
+	set_pgfault_handler(pgfault);
+	envid_t envid = sys_exofork();
+
+	cprintf("envid = %d\n", envid);
+	// debug fork
+	if (envid < 0) {
+		panic("fork.c : fork fail on set sys_exofork");
+	}
+
+	// if we are in child environment, fix our thisenv
+	if (envid == 0) {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		// bellow line won't work, cannot wait for getting into child environment before set_pgfault_handler
+		
+		// Error takes place like this :
+		// 1. parent call sys_fork;
+		// 2. return in child
+		// 3. write return value in variable envid
+		// 4. a "write on copy-on-write" page fault is trapped
+		// 5. no upcall has been set yet, as a result trap.c print trapframe and destroys environment 
+		
+		// thus upcal should be set in parent environment and do an extra work to allocate exception stack page
+		// set_pgfault_handler(pgfault);
+		return 0;
+	} else {
+		uintptr_t vaddr = 0;
+
+		for (vaddr = 0; vaddr < USTACKTOP; vaddr += PGSIZE) {
+			if ((uvpd[PDX(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P)) {
+				
+				// uncomment the following line and we got same result for each environment
+				
+				// vaddr = 00200000
+				// vaddr = 00201000
+				// vaddr = 00202000
+				// vaddr = 00203000
+				// vaddr = 00204000
+				// vaddr = 00800000
+				// vaddr = 00801000
+				// vaddr = 00802000
+				// vaddr = eebfd000
+				
+				// And that's  [User STAB Data][5 pages], [Program Data and Heap][3 pages], [Normal User Stack][1 page]
+
+				// So Quetions is : 
+				// 		Except for Normal User Stack, When did I map other virtual address ?
+				
+				// cprintf("vaddr = %08x\n", vaddr);
+				duppage(envid, PGNUM(vaddr));
+			}
+		}
+		if (sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U|PTE_P|PTE_W) < 0) {
+			panic("fork.c : fork fail page alloc");
+		};	
+		sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+		if (sys_env_set_status(envid, ENV_RUNNABLE) < 0)
+			panic("fork.c : fork fail on set status");
+		return envid;
+	}
+}	
+
+
+
 
 // Challenge!
 int
