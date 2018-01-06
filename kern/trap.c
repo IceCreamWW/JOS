@@ -258,7 +258,7 @@ trap_dispatch(struct Trapframe *tf)
 		case 14:
 			page_fault_handler(tf);		return;
 		case 48:
-			ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+ 			ret = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 			tf->tf_regs.reg_eax = ret;
 			return;
 		default:
@@ -396,7 +396,6 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
-
 	if (curenv->env_pgfault_upcall) {
 		struct UTrapframe *utf = NULL;
 		uintptr_t utf_addr;
@@ -405,7 +404,7 @@ page_fault_handler(struct Trapframe *tf)
 		} else {
 			utf_addr = (UXSTACKTOP - sizeof(struct UTrapframe));
 		}
-		user_mem_assert(curenv, (const void *)utf_addr, sizeof(struct UTrapframe), PTE_W);
+		user_mem_assert	(curenv, (const void *)utf_addr, sizeof(struct UTrapframe), PTE_W);
 		//debug pagefault handler
 		utf = (struct UTrapframe *)utf_addr;
 		utf->utf_eip = tf->tf_eip;
