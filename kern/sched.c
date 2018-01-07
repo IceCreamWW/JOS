@@ -34,12 +34,16 @@ sched_yield(void)
 	int i = start;
 	for (; i < start + NENV; ++i) {
 		if (envs[i % NENV].env_status == ENV_RUNNABLE) {
+			// cprintf("\n ======  id = %d ========\n", envs[i % NENV].env_id);
 			env_run(&envs[i % NENV]);
 			return;
 		}
 	}
 	if (curenv && curenv->env_status == ENV_RUNNING)
+	{
+		// cprintf("\n ======  cur env id = %d ========\n", curenv->env_id);
 		env_run(curenv);
+	}
 	sched_halt();
 }
 
@@ -84,7 +88,7 @@ sched_halt(void)
 		"pushl $0\n"
 		"pushl $0\n"
 		// Uncomment the following line after completing exercise 13
-		//"sti\n"
+		"sti\n"
 		"1:\n"
 		"hlt\n"
 		"jmp 1b\n"

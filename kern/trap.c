@@ -56,6 +56,25 @@ void handler_28();
 void handler_29();
 void handler_30();
 void handler_31();
+
+void handler_32();
+void handler_33();
+void handler_34();
+void handler_35();
+void handler_36();
+void handler_37();
+void handler_38();
+void handler_39();
+void handler_40();
+void handler_41();
+void handler_42();
+void handler_43();
+void handler_44();
+void handler_45();
+void handler_46();
+void handler_47();
+
+
 void handler_48();
 
 
@@ -142,7 +161,24 @@ trap_init(void)
 	SETGATE(idt[29], 0, GD_KT, handler_29, 0);
 	SETGATE(idt[30], 0, GD_KT, handler_30, 0);
 	SETGATE(idt[31], 0, GD_KT, handler_31, 0);
-	
+
+	SETGATE(idt[32], 0, GD_KT, handler_32, 0);
+	SETGATE(idt[33], 0, GD_KT, handler_33, 0);
+	SETGATE(idt[34], 0, GD_KT, handler_34, 0);
+	SETGATE(idt[35], 0, GD_KT, handler_35, 0);
+	SETGATE(idt[36], 0, GD_KT, handler_36, 0);
+	SETGATE(idt[37], 0, GD_KT, handler_37, 0);
+	SETGATE(idt[38], 0, GD_KT, handler_38, 0);
+	SETGATE(idt[39], 0, GD_KT, handler_39, 0);
+	SETGATE(idt[40], 0, GD_KT, handler_40, 0);
+	SETGATE(idt[41], 0, GD_KT, handler_41, 0);
+	SETGATE(idt[42], 0, GD_KT, handler_42, 0);
+	SETGATE(idt[43], 0, GD_KT, handler_43, 0);
+	SETGATE(idt[44], 0, GD_KT, handler_44, 0);
+	SETGATE(idt[45], 0, GD_KT, handler_45, 0);
+	SETGATE(idt[46], 0, GD_KT, handler_46, 0);
+	SETGATE(idt[47], 0, GD_KT, handler_47, 0);
+
 	SETGATE(idt[48], 0, GD_KT, handler_48, 3);
 
 	// Per-CPU setup 
@@ -274,9 +310,16 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
+
 	// Handle clock interrupts. Don't forget to acknowledge the
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
+
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
+		lapic_eoi();
+		sched_yield();
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

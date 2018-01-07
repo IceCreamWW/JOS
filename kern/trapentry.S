@@ -82,7 +82,27 @@
 	TRAPHANDLER_NOEC(handler_30, 30);
 	TRAPHANDLER_NOEC(handler_31, 31);
 	
+	TRAPHANDLER_NOEC(handler_32, 32);
+	TRAPHANDLER_NOEC(handler_33, 33);
+	TRAPHANDLER_NOEC(handler_34, 34);
+	TRAPHANDLER_NOEC(handler_35, 35);
+	TRAPHANDLER_NOEC(handler_36, 36);
+	TRAPHANDLER_NOEC(handler_37, 37);
+	TRAPHANDLER_NOEC(handler_38, 38);
+	TRAPHANDLER_NOEC(handler_39, 39);
+	TRAPHANDLER_NOEC(handler_40, 40);
+	TRAPHANDLER_NOEC(handler_41, 41);
+	TRAPHANDLER_NOEC(handler_42, 42);
+	TRAPHANDLER_NOEC(handler_43, 43);
+	TRAPHANDLER_NOEC(handler_44, 44);
+	TRAPHANDLER_NOEC(handler_45, 45);
+	TRAPHANDLER_NOEC(handler_46, 46);
+	TRAPHANDLER_NOEC(handler_47, 47);
+	
+
 	TRAPHANDLER_NOEC(handler_48, 48);
+
+
 /*
  * Lab 3: Your code here for _alltraps
  */

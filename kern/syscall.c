@@ -325,7 +325,51 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+	// struct Env *env = NULL;
+	// pte_t *pte_pt = NULL;
+	// int r;
+	// if (envid2env(envid, &env, 0) < 0)
+	// 	return -E_BAD_ENV;
+	// if (!env->env_ipc_recving)
+	// 	return -E_IPC_NOT_RECV;
+	// if ((perm & PTE_W) && (!(*pte_pt & PTE_W)))
+	// 	return -E_INVAL;
+
+	// r = sys_page_map(curenv->env_id, srcva, env->env_id, env->env_ipc_dstva, perm);
+	// if (r < 0)	return r;
+	// env->env_ipc_recving = 0;
+	// env->env_ipc_from = curenv->env_id;
+	// env->env_ipc_value = value;
+	// env->env_ipc_perm = (uintptr_t)srcva < UTOP ? perm : 0;
+	// env->env_status = ENV_RUNNABLE;
+	// env->env_tf.tf_regs.reg_eax = 0;
+	
+	// return 0;
+
+	struct Env *env;
+	int ret = envid2env(envid, &env, 0);
+	if (ret) return ret;//bad env
+	if (!env->env_ipc_recving) return -E_IPC_NOT_RECV;
+	if (srcva < (void*)UTOP) {
+		pte_t *pte;
+		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte);
+		if (!pg) return -E_INVAL;
+		if ((*pte & perm) != perm) return -E_INVAL;
+		if ((perm & PTE_W) && !(*pte & PTE_W)) return -E_INVAL;
+		if (srcva != ROUNDDOWN(srcva, PGSIZE)) return -E_INVAL;
+		if (env->env_ipc_dstva < (void*)UTOP) {
+			ret = page_insert(env->env_pgdir, pg, env->env_ipc_dstva, perm);
+			if (ret) return ret;
+		}
+	}
+	env->env_ipc_recving = 0;
+	env->env_ipc_from = curenv->env_id;
+	env->env_ipc_value = value;
+	env->env_ipc_perm = (uintptr_t)srcva < UTOP ? perm : 0;
+	env->env_status = ENV_RUNNABLE;
+	env->env_tf.tf_regs.reg_eax = 0;
+	return 0;
+	// panic("sys_ipc_try_send not implemented");
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -343,7 +387,14 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+
+	if (((uintptr_t)dstva < UTOP) && ((uintptr_t)dstva & 0XFFF)) 
+		return -E_INVAL;
+	curenv->env_ipc_recving = 1;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_ipc_dstva = dstva;
+	sched_yield();
+	// panic("sys_ipc_recv not implemented");
 	return 0;
 }
 
