@@ -325,51 +325,33 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	// struct Env *env = NULL;
-	// pte_t *pte_pt = NULL;
-	// int r;
-	// if (envid2env(envid, &env, 0) < 0)
-	// 	return -E_BAD_ENV;
-	// if (!env->env_ipc_recving)
-	// 	return -E_IPC_NOT_RECV;
-	// if ((perm & PTE_W) && (!(*pte_pt & PTE_W)))
-	// 	return -E_INVAL;
+	struct Env *env = NULL;
+	int r;
+	if (envid2env(envid, &env, 0) < 0)
+		return -E_BAD_ENV;
+	if (!env->env_ipc_recving)
+		return -E_IPC_NOT_RECV;
 
-	// r = sys_page_map(curenv->env_id, srcva, env->env_id, env->env_ipc_dstva, perm);
-	// if (r < 0)	return r;
-	// env->env_ipc_recving = 0;
-	// env->env_ipc_from = curenv->env_id;
-	// env->env_ipc_value = value;
-	// env->env_ipc_perm = (uintptr_t)srcva < UTOP ? perm : 0;
-	// env->env_status = ENV_RUNNABLE;
-	// env->env_tf.tf_regs.reg_eax = 0;
-	
-	// return 0;
+	if ((uintptr_t)srcva < UTOP) {
+		if ((uintptr_t)srcva & 0xFFF) return -E_INVAL;
+		if ((perm & (~PTE_SYSCALL)) || !(perm & PTE_U) || !(perm & PTE_P))	return -E_INVAL;
 
-	struct Env *env;
-	int ret = envid2env(envid, &env, 0);
-	if (ret) return ret;//bad env
-	if (!env->env_ipc_recving) return -E_IPC_NOT_RECV;
-	if (srcva < (void*)UTOP) {
-		pte_t *pte;
-		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte);
+		pte_t *pte_pt = NULL;	
+		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte_pt);
+		if ((perm & PTE_W) && !(*pte_pt & PTE_W)) return -E_INVAL;
 		if (!pg) return -E_INVAL;
-		if ((*pte & perm) != perm) return -E_INVAL;
-		if ((perm & PTE_W) && !(*pte & PTE_W)) return -E_INVAL;
-		if (srcva != ROUNDDOWN(srcva, PGSIZE)) return -E_INVAL;
-		if (env->env_ipc_dstva < (void*)UTOP) {
-			ret = page_insert(env->env_pgdir, pg, env->env_ipc_dstva, perm);
-			if (ret) return ret;
-		}
+		r = page_insert(env->env_pgdir, pg, env->env_ipc_dstva, perm);
+		if (r)	return r;	
 	}
 	env->env_ipc_recving = 0;
 	env->env_ipc_from = curenv->env_id;
 	env->env_ipc_value = value;
 	env->env_ipc_perm = (uintptr_t)srcva < UTOP ? perm : 0;
 	env->env_status = ENV_RUNNABLE;
+	// because sys_ipc_rev yield after receiving message
+	// set reg_eax so that caller will actually get the return value
 	env->env_tf.tf_regs.reg_eax = 0;
 	return 0;
-	// panic("sys_ipc_try_send not implemented");
 }
 
 // Block until a value is ready.  Record that you want to receive
