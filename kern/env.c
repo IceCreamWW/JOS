@@ -197,10 +197,12 @@ env_setup_vm(struct Env *e)
 
 	for (; va < MMIOLIM; va += PGSIZE) {
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
+		if (!pte_pt)	return -E_NO_MEM;
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
 	for (va = KERNBASE - PTSIZE; va >= KERNBASE - PTSIZE; va += PGSIZE) {
 		pte_pt = pgdir_walk(e->env_pgdir, (void *)va, true);
+		if (!pte_pt)	return -E_NO_MEM;
 		*pte_pt = *(pgdir_walk(kern_pgdir, (void *)va, false));
 	}
 
