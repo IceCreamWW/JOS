@@ -143,7 +143,7 @@ fork(void)
 		uintptr_t vaddr = 0;
 
 		for (vaddr = 0; vaddr < USTACKTOP; vaddr += PGSIZE) {
-			if ((uvpd[PDX(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P)) {
+			if ((uvpd[PDX(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_U)) {
 				
 				// uncomment the following line and we got same result for each environment
 				
@@ -162,7 +162,7 @@ fork(void)
 				// So Quetions is : 
 				// 		Except for Normal User Stack, When did I map other virtual address ?
 				
-				// cprintf("vaddr = %08x\n", vaddr);
+				cprintf("vaddr = %08x\n", vaddr);
 				duppage(envid, PGNUM(vaddr));
 			}
 		}
