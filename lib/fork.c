@@ -111,6 +111,10 @@ fork(void)
 {
 	// LAB 4: Your code here.
 	
+	// although it's only set in parent environment
+	// child environment will have this handler
+	// because child environment is exactly the same as parent environment on create, 
+	// except for env_id and env_parent_id
 	set_pgfault_handler(pgfault);
 	envid_t envid = sys_exofork();
 
@@ -123,17 +127,17 @@ fork(void)
 	// if we are in child environment, fix our thisenv
 	if (envid == 0) {
 		thisenv = &envs[ENVX(sys_getenvid())];
-		// bellow line won't work, cannot wait for getting into child environment before set_pgfault_handler
+		// bellow line won't work, cannot set_pgfault_handler after getting into child environment before 
+		// set_pgfault_handler(pgfault);
 		
 		// Error takes place like this :
 		// 1. parent call sys_fork;
 		// 2. return in child
-		// 3. write return value in variable envid
+		// 3. write return value in variable envid ( envid_t envid = sys_exofork() )
 		// 4. a "write on copy-on-write" page fault is trapped
-		// 5. no upcall has been set yet, as a result trap.c print trapframe and destroys environment 
+		// 5. no upcall has been set yet, trap.c prints trapframe and destroys environment 
 		
-		// thus upcal should be set in parent environment and do an extra work to allocate exception stack page
-		// set_pgfault_handler(pgfault);
+		// thus upcal should be set by parent environment and do an extra work to allocate exception stack page
 		return 0;
 	} else {
 		uintptr_t vaddr = 0;

@@ -332,6 +332,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if (!env->env_ipc_recving)
 		return -E_IPC_NOT_RECV;
 
+	// we can't directly call sys_page_map 
+	// because it always check the relationship between two environments
 	if ((uintptr_t)srcva < UTOP) {
 		if ((uintptr_t)srcva & 0xFFF) return -E_INVAL;
 		if ((perm & (~PTE_SYSCALL)) || !(perm & PTE_U) || !(perm & PTE_P))	return -E_INVAL;
