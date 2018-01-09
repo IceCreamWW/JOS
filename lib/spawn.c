@@ -302,6 +302,15 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	uintptr_t vaddr = 0;
+
+		for (vaddr = 0; vaddr < USTACKTOP; vaddr += PGSIZE) {
+			if ((uvpd[PDX(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_P) && (uvpt[PGNUM(vaddr)] & PTE_U)
+				&& (uvpt[PGNUM(vaddr)] & PTE_SHARE)) {
+				cprintf("vaddr = %08x\n", vaddr);
+				if (sys_page_map(0, (void *)(vaddr), child, (void *)(vaddr), PTE_SYSCALL) < 0)
+					panic("fork.c : duppage fail on page_map, perm : PTE_SYSCALL (share)");
+			}
+		}
 	return 0;
 }
-
