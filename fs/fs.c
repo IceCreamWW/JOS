@@ -144,8 +144,32 @@ fs_init(void)
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+	// LAB 5: Your code here.
+	if (filebno >= NDIRECT + NINDIRECT)
+		return -E_INVAL;
+
+
+	if (filebno < NDIRECT) {
+		if (ppdiskbno)
+			*ppdiskbno = f->f_direct + filebno;
+		return 0;
+	}
+
+	if (!alloc && !f->f_indirect)
+		return -E_NOT_FOUND;
+
+	if (f->f_indirect == 0) {
+		int r = alloc_block();
+		if (r < 0) return r;
+		f->f_indirect = r;	
+		memset(diskaddr(r), 0, BLKSIZE);
+		flush_block(diskaddr(r));
+	}
+	if (ppdiskbno)
+		*ppdiskbno = (uint32_t *)diskaddr(f->f_indirect) + filebno - NDIRECT; 
+	return 0;
+
+	// panic("file_block_walk not implemented");
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -160,7 +184,20 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+	uint32_t *pdiskbno = NULL;
+	int r = file_block_walk(f, filebno, &pdiskbno, true);
+	if (r < 0)	return r;
+	if (*pdiskbno == 0) {
+		r = alloc_block();
+		if (r < 0) return -E_NO_DISK;
+
+		*pdiskbno = r;
+		memset(diskaddr(r), 0, BLKSIZE);
+		flush_block(diskaddr(r));
+	}
+	*blk = diskaddr(*pdiskbno);
+	return 0;
+	// panic("file_get_block not implemented");
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -184,11 +221,12 @@ dir_lookup(struct File *dir, const char *name, struct File **file)
 		if ((r = file_get_block(dir, i, &blk)) < 0)
 			return r;
 		f = (struct File*) blk;
-		for (j = 0; j < BLKFILES; j++)
+		for (j = 0; j < BLKFILES; j++) {
 			if (strcmp(f[j].f_name, name) == 0) {
 				*file = &f[j];
 				return 0;
 			}
+		}
 	}
 	return -E_NOT_FOUND;
 }
@@ -281,7 +319,6 @@ walk_path(const char *path, struct File **pdir, struct File **pf, char *lastelem
 			return r;
 		}
 	}
-
 	if (pdir)
 		*pdir = dir;
 	*pf = f;
@@ -384,7 +421,7 @@ static int
 file_free_block(struct File *f, uint32_t filebno)
 {
 	int r;
-	uint32_t *ptr;
+	uint32_t *ptr = 0;
 
 	if ((r = file_block_walk(f, filebno, &ptr, 0)) < 0)
 		return r;
@@ -441,7 +478,7 @@ void
 file_flush(struct File *f)
 {
 	int i;
-	uint32_t *pdiskbno;
+	uint32_t *pdiskbno = 0;
 
 	for (i = 0; i < (f->f_size + BLKSIZE - 1) / BLKSIZE; i++) {
 		if (file_block_walk(f, i, &pdiskbno, 0) < 0 ||

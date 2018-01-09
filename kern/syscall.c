@@ -193,7 +193,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if ( ((uintptr_t)va & 0XFFF) || (uintptr_t)va > UTOP) return -E_INVAL;
 
 	struct PageInfo *pp = page_alloc(ALLOC_ZERO);
-	++pp->pp_ref;
 
 	// not memory to allocate new page
 	if (!pp) return -E_NO_MEM;
