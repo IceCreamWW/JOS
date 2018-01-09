@@ -121,7 +121,7 @@ fork(void)
 	set_pgfault_handler(pgfault);
 	envid_t envid = sys_exofork();
 
-	cprintf("envid = %d\n", envid);
+	// cprintf("envid = %d\n", envid);
 	// debug fork
 	if (envid < 0) {
 		panic("fork.c : fork fail on set sys_exofork");
@@ -165,7 +165,7 @@ fork(void)
 				// So Quetions is : 
 				// 		Except for Normal User Stack, When did I map other virtual address ?
 				
-				cprintf("vaddr = %08x\n", vaddr);
+				// cprintf("vaddr = %08x\n", vaddr);
 				duppage(envid, PGNUM(vaddr));
 			}
 		}
